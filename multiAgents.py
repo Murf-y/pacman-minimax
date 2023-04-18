@@ -72,10 +72,33 @@ class ReflexAgent(Agent):
         newPos = successorGameState.getPacmanPosition()
         newFood = successorGameState.getFood()
         newGhostStates = successorGameState.getGhostStates()
+        currentFood = currentGameState.getFood()
+        # Initialize the heuristic value to zero
+        heuristicValue = 0
+        # Check if the game is over
+        if successorGameState.isWin():
+            return float("inf")
+        if successorGameState.isLose():
+            return float("-inf")
+        # Compute the number of food pellets in the current and successor states
+        numCurrentFood = currentFood.count()
+        numSuccessorFood = newFood.count()
+        min_food_distance = float("inf")
+        sum_ghost_distances = 0
         newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
+        currentGhostPositions = currentGameState.getGhostPositions()
+        # Compute the distance to the closest food pellet
+        for food in newFood.asList():
+            min_food_distance = min(min_food_distance, manhattanDistance(newPos, food))
+        
+        # Compute the distance to the closest ghost
+        for ghost in newGhostStates:
+            sum_ghost_distances += manhattanDistance(newPos, ghost.getPosition())
+        
+        # Compute the heuristic value
+        score = 88 * (currentGameState.getNumFood() - successorGameState.getNumFood()) + 89 * (1 / min_food_distance) + -96 * (1 / sum_ghost_distances) + 70 * sum(newScaredTimes) + -60 * (1 if newPos in currentGhostPositions else 0) + (-1000 if action == Directions.STOP else 0)
+        return score
 
-        "*** YOUR CODE HERE ***"
-        return successorGameState.getScore()
 
 def scoreEvaluationFunction(currentGameState: GameState):
     """
