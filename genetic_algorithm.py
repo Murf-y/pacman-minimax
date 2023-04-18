@@ -24,7 +24,7 @@ import pacman
 import multiAgents
 import ghostAgents
 import textDisplay
-
+from game import Directions
 
 class GeneticAlgorithm:
 
@@ -118,7 +118,7 @@ class GeneticAlgorithm:
                 sum_ghost_distances += manhattanDistance(newPos, ghost.getPosition())
             
             # Compute the heuristic value
-            score = a * (currentGameState.getNumFood() - successorGameState.getNumFood()) + b * (1 / min_food_distance) + c * (1 / sum_ghost_distances) + d * sum(newScaredTimes) + e * (1 if newPos in currentGhostPositions else 0)
+            score = a * (currentGameState.getNumFood() - successorGameState.getNumFood()) + b * (1 / min_food_distance) + c * (1 / sum_ghost_distances) + d * sum(newScaredTimes) + e * (1 if newPos in currentGhostPositions else 0) + (-1000 if action == Directions.STOP else 0)
             return score
 
         customAgent = type('CustomReflexAgent', (multiAgents.ReflexAgent,), {'evaluationFunction': customEvaluationFunction})
@@ -284,7 +284,7 @@ def main( argv ):
     k = options.numGhosts
 
     rules = pacman.ClassicGameRules()
-    gameDisplay = textDisplay.PacmanGraphics()
+    gameDisplay = textDisplay.NullGraphics()
     rules.quiet = True
     
     data = Data(used_layout, rules, gameDisplay, [ghostAgents.DirectionalGhost(i+1) for i in range(k)])

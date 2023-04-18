@@ -97,37 +97,6 @@ class ReflexAgent(Agent):
         # Compute the distance to the closest ghost
         for ghost in newGhostStates:
             sum_ghost_distances += manhattanDistance(newPos, ghost.getPosition())
-        
-        # we need to cache the action so that if they repeat alternative actions, NORTH => SOUTH => NORTH => SOUTH => NORTH => SOUTH then it is stuck thus return a very low value, cache up to last 5 actions
-        # if the past 5 actions are alternating then we can assume that the agent is stuck
-        pre_pre_pre_pre_pre_action = self.cache.get("pre_pre_pre_pre_pre_action", None)
-        pre_pre_pre_pre_action = self.cache.get("pre_pre_pre_pre_action", None)
-        pre_pre_pre_action = self.cache.get("pre_pre_pre_action", None)
-        pre_pre_action = self.cache.get("pre_pre_action", None)
-        pre_action = self.cache.get("pre_action", None)
-        if pre_pre_pre_pre_pre_action is not None and pre_pre_pre_pre_action is not None and pre_pre_pre_action is not None and pre_pre_action is not None and pre_action is not None:
-            if pre_pre_pre_pre_pre_action == Directions.NORTH and pre_pre_pre_pre_action == Directions.SOUTH and pre_pre_pre_action == Directions.NORTH and pre_pre_action == Directions.SOUTH and pre_action == Directions.NORTH:
-                print("stuck")
-                return float("-inf")
-            if pre_pre_pre_pre_pre_action == Directions.SOUTH and pre_pre_pre_pre_action == Directions.NORTH and pre_pre_pre_action == Directions.SOUTH and pre_pre_action == Directions.NORTH and pre_action == Directions.SOUTH:
-                print("stuck")
-                return float("-inf")
-            if pre_pre_pre_pre_pre_action == Directions.EAST and pre_pre_pre_pre_action == Directions.WEST and pre_pre_pre_action == Directions.EAST and pre_pre_action == Directions.WEST and pre_action == Directions.EAST:
-                print("stuck")
-                return float("-inf")
-            if pre_pre_pre_pre_pre_action == Directions.WEST and pre_pre_pre_pre_action == Directions.EAST and pre_pre_pre_action == Directions.WEST and pre_pre_action == Directions.EAST and pre_action == Directions.WEST:
-                print("stuck")
-                return float("-inf")
-        
-        # cache the action
-        self.cache["pre_pre_pre_pre_pre_action"] = self.cache.get("pre_pre_pre_pre_action", None)
-        self.cache["pre_pre_pre_pre_action"] = self.cache.get("pre_pre_pre_action", None)
-        self.cache["pre_pre_pre_action"] = self.cache.get("pre_pre_action", None)
-        self.cache["pre_pre_action"] = self.cache.get("pre_action", None)
-        self.cache["pre_action"] = action
-
-
-        
 
         # Compute the heuristic value
         score = 88 * (currentGameState.getNumFood() - successorGameState.getNumFood()) + 89 * (1 / min_food_distance) + -96 * (1 / sum_ghost_distances) + 70 * sum(newScaredTimes) + -60 * (1 if newPos in currentGhostPositions else 0) + (-1000 if action == Directions.STOP else 0)
