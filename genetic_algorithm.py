@@ -83,6 +83,8 @@ class GeneticAlgorithm:
             c = solution[2]
             d = solution[3]
             e = solution[4]
+            f = solution[5]
+            g = solution[6]
 
             # Useful information you can extract from a GameState (pacman.py)
             successorGameState = currentGameState.generatePacmanSuccessor(action)
@@ -108,6 +110,8 @@ class GeneticAlgorithm:
             sum_ghost_distances = 0
             newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
             currentGhostPositions = currentGameState.getGhostPositions()
+            capsules = currentGameState.getCapsules()
+            min_capsule_distance = float("inf")
 
             # Compute the distance to the closest food pellet
             for food in newFood.asList():
@@ -117,8 +121,11 @@ class GeneticAlgorithm:
             for ghost in newGhostStates:
                 sum_ghost_distances += manhattanDistance(newPos, ghost.getPosition())
             
+            for capsule in capsules:
+                min_capsule_distance = min(min_capsule_distance, manhattanDistance(newPos, capsule))
+
             # Compute the heuristic value
-            score = a * (currentGameState.getNumFood() - successorGameState.getNumFood()) + b * (1 / min_food_distance) + c * (1 / sum_ghost_distances) + d * sum(newScaredTimes) + e * (1 if newPos in currentGhostPositions else 0) + (-1000 if action == Directions.STOP else 0)
+            score = a * (currentGameState.getNumFood() - successorGameState.getNumFood()) + b * (1 / min_food_distance) + c * (1 / sum_ghost_distances) + d * sum(newScaredTimes) + e * (1 if newPos in currentGhostPositions else 0) + f * (newPos in capsules) + g * (1/min_capsule_distance if min_capsule_distance != 0 else 0) +  (-1000 if action == Directions.STOP else 0)
             return score
 
         customAgent = type('CustomReflexAgent', (multiAgents.ReflexAgent,), {'evaluationFunction': customEvaluationFunction})
@@ -127,7 +134,7 @@ class GeneticAlgorithm:
         # score = game.state.getScore()
         # run it 5 times and take the average
         scores = []
-        for i in range(5):
+        for i in range(2):
             game = self.data.rules.newGame(self.data.layout, customAgent(), self.data.ghostAgents, self.data.gameDisplay)
             game.run()
             scores.append(game.state.getScore())
@@ -294,9 +301,9 @@ def main( argv ):
 
     
     ga = GeneticAlgorithm(
-        n_genes = 5,
+        n_genes = 7,
         n_iterations = 20,
-        lchrom = 5,
+        lchrom = 7,
         pcross = 0.8, 
         pmutation = 0.2,
         selection_type = 'ranking', 

@@ -15,10 +15,10 @@
 from util import manhattanDistance
 from game import Directions
 import random, util
-
 from game import Agent
 from pacman import GameState
 
+# python pacman.py -l smallClassic -k 7 -p ReflexAgent
 class ReflexAgent(Agent):
     """
     A reflex agent chooses an action at each choice point by examining
@@ -133,11 +133,38 @@ class MultiAgentSearchAgent(Agent):
         self.evaluationFunction = util.lookup(evalFn, globals())
         self.depth = int(depth)
 
+# python pacman.py -l smallClassic -k 7 -p MinimaxAgent 
 class MinimaxAgent(MultiAgentSearchAgent):
     """
     Your minimax agent (question 2)
     """
 
+    def minmax(self, state, currentDepth, agentIndex):
+        if (state.isWin() or state.isLose() or currentDepth == 0):
+            return self.evaluationFunction(state)
+        else:
+            if agentIndex == 0:
+                return self.maxValue(state, currentDepth, agentIndex)
+            else:
+                if agentIndex == state.getNumAgents():
+                    return self.minmax(state, currentDepth, 0)
+                    
+                return self.minValue(state, currentDepth, agentIndex)
+
+    def maxValue(self, state, currentDepth, agentIndex):
+        v = float("-inf")
+        for action in state.getLegalActions(agentIndex):
+            successor = state.generateSuccessor(agentIndex, action)
+            v = max(v, self.minmax(successor, currentDepth - 1, agentIndex + 1))
+        return v
+    
+    def minValue(self, state, currentDepth, agentIndex):
+        v = float("inf")
+        for action in state.getLegalActions(agentIndex):
+            successor = state.generateSuccessor(agentIndex, action)
+            v = min(v, self.minmax(successor, currentDepth, agentIndex + 1))
+        return v
+    
     def getAction(self, gameState: GameState):
         """
         Returns the minimax action from the current gameState using self.depth
@@ -162,7 +189,17 @@ class MinimaxAgent(MultiAgentSearchAgent):
         Returns whether or not the game state is a losing state
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+
+        bestAction = None
+        bestValue = float("-inf")
+        for action in gameState.getLegalActions(0):
+            successor = gameState.generateSuccessor(0, action)
+            value = self.minmax(successor, self.depth, 1)
+            if value > bestValue:
+                bestValue = value
+                bestAction = action
+        return bestAction
+        
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
@@ -199,7 +236,88 @@ def betterEvaluationFunction(currentGameState: GameState):
     DESCRIPTION: <write something here so we know what you did>
     """
     "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    def closest_dot(cur_pos, food_pos):
+        food_distances = []
+        for food in food_pos:
+            food_distances.append(util.manhattanDistance(food, cur_pos))
+        return min(food_distances) if len(food_distances) > 0 else 1
+
+    def closest_ghost(cur_pos, ghosts):
+        food_distances = []
+        for food in ghosts:
+            food_distances.append(util.manhattanDistance(food.getPosition(), cur_pos))
+        return min(food_distances) if len(food_distances) > 0 else 1
+
+
+    def ghost_stuff(cur_pos, ghost_states, radius, scores):
+        num_ghosts = 0
+        for ghost in ghost_states:
+            if util.manhattanDistance(ghost.getPosition(), cur_pos) <= radius:
+                scores -= 30
+                num_ghosts += 1
+        return scores
+
+    def food_stuff(cur_pos, food_positions):
+        food_distances = []
+        for food in food_positions:
+            food_distances.append(util.manhattanDistance(food, cur_pos))
+        return sum(food_distances)
+
+    def num_food(cur_pos, food):
+        return len(food)
+
+    def closest_capsule(cur_pos, caps_pos):
+        capsule_distances = []
+        for caps in caps_pos:
+            capsule_distances.append(util.manhattanDistance(caps, cur_pos))
+        return min(capsule_distances) if len(capsule_distances) > 0 else 9999999
+
+    def scaredghosts(ghost_states, cur_pos, scores):
+        scoreslist = []
+        for ghost in ghost_states:
+            if ghost.scaredTimer > 8 and util.manhattanDistance(ghost.getPosition(), cur_pos) <= 4:
+                scoreslist.append(scores + 50)
+            if ghost.scaredTimer > 8 and util.manhattanDistance(ghost.getPosition(), cur_pos) <= 3:
+                scoreslist.append(scores + 60)
+            if ghost.scaredTimer > 8 and util.manhattanDistance(ghost.getPosition(), cur_pos) <= 2:
+                scoreslist.append(scores + 70)
+            if ghost.scaredTimer > 8 and util.manhattanDistance(ghost.getPosition(), cur_pos) <= 1:
+                scoreslist.append(scores + 90)
+            #if ghost.scaredTimer > 0 and util.manhattanDistance(ghost.getPosition(), cur_pos) < 1:
+ #              scoreslist.append(scores + 100)
+        return max(scoreslist) if len(scoreslist) > 0 else scores
+
+    def ghostattack(ghost_states, cur_pos, scores):
+        scoreslist = []
+        for ghost in ghost_states:
+            if ghost.scaredTimer == 0:
+                scoreslist.append(scores - util.manhattanDistance(ghost.getPosition(), cur_pos) - 10)
+        return max(scoreslist) if len(scoreslist) > 0 else scores
+
+    def scoreagent(cur_pos, food_pos, ghost_states, caps_pos, score):
+        if closest_capsule(cur_pos, caps_pos) < closest_ghost(cur_pos, ghost_states):
+            return score + 40
+        if closest_dot(cur_pos, food_pos) < closest_ghost(cur_pos, ghost_states) + 3:
+            return score + 20
+        if closest_capsule(cur_pos, caps_pos) < closest_dot(cur_pos, food_pos) + 3:
+            return score + 30
+        else:
+            return score
+
+
+    capsule_pos = currentGameState.getCapsules()
+    pacman_pos = currentGameState.getPacmanPosition()
+    score = currentGameState.getScore()
+    food = currentGameState.getFood().asList()
+    ghosts = currentGameState.getGhostStates()
+
+    #score = score * 2 if closest_dot(pacman_pos, food) < closest_ghost(pacman_pos, ghosts) + 3 else score
+    #score = score * 1.5 if closest_capsule(pacman_pos, capsule_pos) < closest_dot(pacman_pos, food) + 4 else score
+    score = scoreagent(pacman_pos, food, ghosts, capsule_pos, score)
+    score = scaredghosts(ghosts, pacman_pos, score)
+    score = ghostattack(ghosts, pacman_pos, score)
+    score -= .35 * food_stuff(pacman_pos, food)
+    return score
 
 # Abbreviation
 better = betterEvaluationFunction
