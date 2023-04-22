@@ -217,6 +217,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
 
         return bestAction
 
+# python pacman.py -p AlphaBetaAgent -l smallClassic -k 10 -a depth=2,evalFn=better -q
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
     Your minimax agent with alpha-beta pruning (question 3)
@@ -291,6 +292,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
 
         return bestAction
 
+# python pacman.py -p ExpectimaxAgent -l smallClassic -k 10 -a depth=2,evalFn=better -q
 class ExpectimaxAgent(MultiAgentSearchAgent):
     """
       Your expectimax agent (question 4)
@@ -362,7 +364,7 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
 
         return bestAction
 
-
+# python pacman.py -p ExpectimaxAlphaBetaPruningAgent -l smallClassic -k 10 -a depth=2,evalFn=better -q
 class ExpectimaxAlphaBetaPruningAgent(MultiAgentSearchAgent):
     def alphaBeta(self, gameState, agentIndex, depth, alpha, beta):
         if gameState.isWin() or gameState.isLose() or depth == self.depth:
@@ -434,7 +436,7 @@ class ExpectimaxAlphaBetaPruningAgent(MultiAgentSearchAgent):
         bestScore, bestAction = self.alphaBeta(gameState, 0, 0, float("-inf"), float("inf"))
 
         return bestAction
-        
+
 def betterEvaluationFunction(currentGameState: GameState):
     """
     Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
