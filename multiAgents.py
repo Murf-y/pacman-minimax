@@ -222,12 +222,74 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
     Your minimax agent with alpha-beta pruning (question 3)
     """
 
+    def alphaBeta(self, gameState, agentIndex, depth, alpha, beta):
+        if gameState.isWin() or gameState.isLose() or depth == self.depth:
+            return self.evaluationFunction(gameState), None
+
+        if agentIndex == 0:
+            return self.maxValue(gameState, depth, agentIndex, alpha, beta)
+        else:
+            return self.minValue(gameState, depth, agentIndex, alpha, beta)
+    
+    def maxValue(self, state, currentDepth, agentIndex, alpha, beta):
+        v = float("-inf")
+        bestAction = None
+        allActions = state.getLegalActions(agentIndex)
+        for action in allActions:
+            successor = state.generateSuccessor(agentIndex, action)
+            successorIndex = agentIndex + 1
+            successorDepth = currentDepth
+
+            if successorIndex == state.getNumAgents():
+                successorIndex = 0
+                successorDepth += 1
+
+            successorValue = self.alphaBeta(successor, successorIndex, successorDepth, alpha, beta)[0]
+
+            if successorValue > v:
+                v = successorValue
+                bestAction = action
+
+            if v > beta:
+                return v, bestAction
+
+            alpha = max(alpha, v)
+        return v, bestAction
+    
+    def minValue(self, state, currentDepth, agentIndex, alpha, beta):
+        v = float("inf")
+        bestAction = None
+        allActions = state.getLegalActions(agentIndex)
+        for action in allActions:
+            successor = state.generateSuccessor(agentIndex, action)
+            successorIndex = agentIndex + 1
+            successorDepth = currentDepth
+
+            if successorIndex == state.getNumAgents():
+                successorIndex = 0
+                successorDepth += 1
+
+            successorValue = self.alphaBeta(successor, successorIndex, successorDepth, alpha, beta)[0]
+
+            if successorValue < v:
+                v = successorValue
+                bestAction = action
+
+            if v < alpha:
+                return v, bestAction
+
+            beta = min(beta, v)
+        return v, bestAction
+    
     def getAction(self, gameState: GameState):
         """
         Returns the minimax action using self.depth and self.evaluationFunction
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+
+        bestScore, bestAction = self.alphaBeta(gameState, 0, 0, float("-inf"), float("inf"))
+
+        return bestAction
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
     """
