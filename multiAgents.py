@@ -362,6 +362,79 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
 
         return bestAction
 
+
+class ExpectimaxAlphaBetaPruningAgent(MultiAgentSearchAgent):
+    def alphaBeta(self, gameState, agentIndex, depth, alpha, beta):
+        if gameState.isWin() or gameState.isLose() or depth == self.depth:
+            return self.evaluationFunction(gameState), None
+
+        if agentIndex == 0:
+            return self.maxValue(gameState, depth, agentIndex, alpha, beta)
+        else:
+            return self.expValue(gameState, depth, agentIndex, alpha, beta)
+    
+    def maxValue(self, state, currentDepth, agentIndex, alpha, beta):
+        v = float("-inf")
+        bestAction = None
+        allActions = state.getLegalActions(agentIndex)
+        for action in allActions:
+            successor = state.generateSuccessor(agentIndex, action)
+            successorIndex = agentIndex + 1
+            successorDepth = currentDepth
+
+            if successorIndex == state.getNumAgents():
+                successorIndex = 0
+                successorDepth += 1
+
+            successorValue = self.alphaBeta(successor, successorIndex, successorDepth, alpha, beta)[0]
+
+            if successorValue > v:
+                v = successorValue
+                bestAction = action
+
+            if v > beta:
+                return v, bestAction
+
+            alpha = max(alpha, v)
+        return v, bestAction
+    
+    def expValue(self, state, currentDepth, agentIndex, alpha, beta):
+        v = 0
+        bestAction = None
+        allActions = state.getLegalActions(agentIndex)
+
+        if len(allActions) == 0:
+            return self.evaluationFunction(state), None
+        successorProb = 1 / len(allActions)
+
+        for action in allActions:
+            successor = state.generateSuccessor(agentIndex, action)
+            successorIndex = agentIndex + 1
+            successorDepth = currentDepth
+
+            if successorIndex == state.getNumAgents():
+                successorIndex = 0
+                successorDepth += 1
+
+            successorValue = self.alphaBeta(successor, successorIndex, successorDepth, alpha, beta)[0]
+
+            v += successorValue
+        v /= len(allActions)
+        return v, bestAction
+    
+    def getAction(self, gameState: GameState):
+        """
+        Returns the expectimax action using self.depth and self.evaluationFunction
+
+        All ghosts should be modeled as choosing uniformly at random from their
+        legal moves.
+        """
+        "*** YOUR CODE HERE ***"
+
+        bestScore, bestAction = self.alphaBeta(gameState, 0, 0, float("-inf"), float("inf"))
+
+        return bestAction
+        
 def betterEvaluationFunction(currentGameState: GameState):
     """
     Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
