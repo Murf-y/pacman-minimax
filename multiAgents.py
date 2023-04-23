@@ -445,88 +445,50 @@ def betterEvaluationFunction(currentGameState: GameState):
     DESCRIPTION: <write something here so we know what you did>
     """
     "*** YOUR CODE HERE ***"
-    def closest_dot(cur_pos, food_pos):
-        food_distances = []
-        for food in food_pos:
-            food_distances.append(util.manhattanDistance(food, cur_pos))
-        return min(food_distances) if len(food_distances) > 0 else 1
+    # return currentGameState.getScore()
 
-    def closest_ghost(cur_pos, ghosts):
-        food_distances = []
-        for food in ghosts:
-            food_distances.append(util.manhattanDistance(food.getPosition(), cur_pos))
-        return min(food_distances) if len(food_distances) > 0 else 1
+    def getClosestFood(current_pos, foodGrid):
+        closestFood = 1
+        for food in foodGrid.asList():
+            closestFood = min(closestFood, manhattanDistance(current_pos, food))
+        return closestFood
+    
+    def getClosestGhost(current_pos, ghostStates):
+        closestGhost = 1
+        for ghost in ghostStates:
+            closestGhost = min(closestGhost, manhattanDistance(current_pos, ghost.getPosition()))
+        return closestGhost
+    
+    def getClosestCapsule(current_pos, capsuleList):
+        closestCapsule = 1
+        for capsule in capsuleList:
+            closestCapsule = min(closestCapsule, manhattanDistance(current_pos, capsule))
+        return closestCapsule
+    
+    def scaredGhosts(current_pos, ghostStates):
+        numGhosts = 1
+        for ghost in ghostStates:
+            if ghost.scaredTimer > 0 and manhattanDistance(current_pos, ghost.getPosition()) < 2:
+                numGhosts += 1
+        return numGhosts
+    
+    def nonScaredGhosts(current_pos, ghostStates):
+        numGhosts = 0
+        for ghost in ghostStates:
+            if ghost.scaredTimer == 0 and manhattanDistance(current_pos, ghost.getPosition()) < 2:
+                numGhosts += 1
+        return ghostScore
+    
+    def isClosestCapsuleCloserThanClosestNonScaredGhost(current_pos, capsuleList, ghostStates):
+        closestCapsule = getClosestCapsule(current_pos, capsuleList)
+        closestGhost = getClosestGhost(current_pos, ghostStates)
+        return 1 if closestCapsule < closestGhost else 0 
+    
+    def isClosestFoodCloserThanClosestNonScaredGhost(current_pos, foodGrid, ghostStates):
+        closestFood = getClosestFood(current_pos, foodGrid)
+        closestGhost = getClosestGhost(current_pos, ghostStates)
+        return 1 if closestFood < closestGhost else 0
 
-
-    def ghost_stuff(cur_pos, ghost_states, radius, scores):
-        num_ghosts = 0
-        for ghost in ghost_states:
-            if util.manhattanDistance(ghost.getPosition(), cur_pos) <= radius:
-                scores -= 30
-                num_ghosts += 1
-        return scores
-
-    def food_stuff(cur_pos, food_positions):
-        food_distances = []
-        for food in food_positions:
-            food_distances.append(util.manhattanDistance(food, cur_pos))
-        return sum(food_distances)
-
-    def num_food(cur_pos, food):
-        return len(food)
-
-    def closest_capsule(cur_pos, caps_pos):
-        capsule_distances = []
-        for caps in caps_pos:
-            capsule_distances.append(util.manhattanDistance(caps, cur_pos))
-        return min(capsule_distances) if len(capsule_distances) > 0 else 9999999
-
-    def scaredghosts(ghost_states, cur_pos, scores):
-        scoreslist = []
-        for ghost in ghost_states:
-            if ghost.scaredTimer > 8 and util.manhattanDistance(ghost.getPosition(), cur_pos) <= 4:
-                scoreslist.append(scores + 50)
-            if ghost.scaredTimer > 8 and util.manhattanDistance(ghost.getPosition(), cur_pos) <= 3:
-                scoreslist.append(scores + 60)
-            if ghost.scaredTimer > 8 and util.manhattanDistance(ghost.getPosition(), cur_pos) <= 2:
-                scoreslist.append(scores + 70)
-            if ghost.scaredTimer > 8 and util.manhattanDistance(ghost.getPosition(), cur_pos) <= 1:
-                scoreslist.append(scores + 90)
-            #if ghost.scaredTimer > 0 and util.manhattanDistance(ghost.getPosition(), cur_pos) < 1:
- #              scoreslist.append(scores + 100)
-        return max(scoreslist) if len(scoreslist) > 0 else scores
-
-    def ghostattack(ghost_states, cur_pos, scores):
-        scoreslist = []
-        for ghost in ghost_states:
-            if ghost.scaredTimer == 0:
-                scoreslist.append(scores - util.manhattanDistance(ghost.getPosition(), cur_pos) - 10)
-        return max(scoreslist) if len(scoreslist) > 0 else scores
-
-    def scoreagent(cur_pos, food_pos, ghost_states, caps_pos, score):
-        if closest_capsule(cur_pos, caps_pos) < closest_ghost(cur_pos, ghost_states):
-            return score + 40
-        if closest_dot(cur_pos, food_pos) < closest_ghost(cur_pos, ghost_states) + 3:
-            return score + 20
-        if closest_capsule(cur_pos, caps_pos) < closest_dot(cur_pos, food_pos) + 3:
-            return score + 30
-        else:
-            return score
-
-
-    capsule_pos = currentGameState.getCapsules()
-    pacman_pos = currentGameState.getPacmanPosition()
-    score = currentGameState.getScore()
-    food = currentGameState.getFood().asList()
-    ghosts = currentGameState.getGhostStates()
-
-    #score = score * 2 if closest_dot(pacman_pos, food) < closest_ghost(pacman_pos, ghosts) + 3 else score
-    #score = score * 1.5 if closest_capsule(pacman_pos, capsule_pos) < closest_dot(pacman_pos, food) + 4 else score
-    score = scoreagent(pacman_pos, food, ghosts, capsule_pos, score)
-    score = scaredghosts(ghosts, pacman_pos, score)
-    score = ghostattack(ghosts, pacman_pos, score)
-    score -= .35 * food_stuff(pacman_pos, food)
     return score
-
 # Abbreviation
 better = betterEvaluationFunction
