@@ -173,12 +173,13 @@ class GeneticAlgorithm:
         def customEvaluationFunction(currentGameState):
             def DClosestFood(current_pos, foodGrid, ghosts_pos):
                 closestFood = foodHeuristic(current_pos, foodGrid)
+
                 if closestFood == 0:
                     closestFood = 1
                 # if there is chance (thus manhattanDistance and not exact distance)
                 # that there is a ghost nearby dont risk it
                 for ghost in ghosts_pos:
-                    if manhattanDistance(current_pos, ghost) < 2:
+                    if manhattanDistance(current_pos, ghost) <= 1:
                         closestFood = 99999
                 return closestFood
             
@@ -186,9 +187,9 @@ class GeneticAlgorithm:
                 # exact distance to ghost
                 for ghost in ghosts_pos:
                     estimadedDistance = manhattanDistance(current_pos, ghost)
-                    if estimadedDistance < 3:
-                        if len(aStar(currentGameState, ghost, manhattanDistance)) < 2:
-                            return 99999
+                    if estimadedDistance <= 1:
+                        if len(aStar(currentGameState, ghost, manhattanDistance)) <= 1:
+                            return 1
                 return 0
 
             current_pos = currentGameState.getPacmanPosition()
@@ -197,10 +198,21 @@ class GeneticAlgorithm:
             foodGrid = currentGameState.getFood()
             capsuleList = currentGameState.getCapsules()
 
-            features = [1.0/DClosestFood(current_pos, foodGrid, ghosts_pos),
-                        currentGameState.getScore(),
-                        isNearGhost(current_pos, ghosts_pos),
-                        ]
+            feat_isNearGhost = isNearGhost(current_pos, ghosts_pos)
+
+            maximum_distance = currentGameState.data.layout.width + currentGameState.data.layout.height
+            closest_food = DClosestFood(current_pos, foodGrid, ghosts_pos)
+            # normalize base on maximum distance
+            feat_DClosestFood = (maximum_distance - closest_food) / maximum_distance
+            # use Exp to make it more sensitive
+            feat_DClosestFood = math.exp(feat_DClosestFood)
+            feat_currentScore = currentGameState.getScore()
+            feat_FoodCount = 1.0 / (len(foodGrid.asList()) + 1)
+
+            features = [feat_DClosestFood,
+                        feat_FoodCount,
+                        feat_currentScore,
+                        feat_isNearGhost]
 
             score = 0
             for i in range(len(features)):
@@ -212,12 +224,15 @@ class GeneticAlgorithm:
         customAgent = self.data.agentToUse(actualEvalFunc=customEvaluationFunction, evalFn="doesntexists", depth=2)
         baseGhosts =  [ghostAgents.DirectionalGhost(i+1) for i in range(self.data.numberOfGhosts)]
         game = self.data.rules.newGame(self.data.layout, customAgent, baseGhosts, self.data.gameDisplay)
-        game.run() # simulate the game using a custom evaluation function given by the solution (weights)
-        score = game.state.getScore()
-        print("Individual score: ", score, " with weights: ", solution, "\n")
-        cache = {} # clear cache
 
+        # wait for the game to finish
+        game.run()
+        score = game.state.getScore()
+        cache = {} # clear cache
+        
+        print("Individual: ", solution, "Score: ", score)
         return score
+
 
     def get_fitness_scores(self):
         scores = [self.fitness_func(ind) for ind in self.population]
@@ -382,17 +397,17 @@ def main( argv ):
     data = Data(used_layout, rules, gameDisplay, k, agentToUse)
     
     ga = GeneticAlgorithm(
-        n_genes = 3,
+        n_genes = 4,
         n_iterations = 10,
-        lchrom = 3,
+        lchrom = 4,
         pcross = 0.8, 
         pmutation = 0.35,
         selection_type = 'ranking', 
         popsize = 20,
         n_elites = 2,
         data = data,
-        MAX_VALUE = 1000,
-        MIN_VALUE = -1000,
+        MAX_VALUE = 2000,
+        MIN_VALUE = -2000,
     )
 
     best_solution, best_fitness = ga.optimize()

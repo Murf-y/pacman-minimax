@@ -480,6 +480,12 @@ def aStar(gameState: GameState, goal: tuple, heuristic: callable):
     return []
 
 
+def euclideanDistance(point1: tuple, point2: tuple):
+    """
+    Euclidean distance between two points
+    """
+    return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
+
 def betterEvaluationFunction(currentGameState: GameState):
     """
     Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
@@ -490,13 +496,15 @@ def betterEvaluationFunction(currentGameState: GameState):
     "*** YOUR CODE HERE ***"
 
     solution = [
-        200,
-        300,
-        -500,
+        1735,
+        139,
+        345,
+        -1299,
     ]
 
     def DClosestFood(current_pos, foodGrid, ghosts_pos):
         closestFood = foodHeuristic(current_pos, foodGrid)
+
         if closestFood == 0:
             closestFood = 1
         # if there is chance (thus manhattanDistance and not exact distance)
@@ -509,8 +517,8 @@ def betterEvaluationFunction(currentGameState: GameState):
     def isNearGhost(current_pos, ghosts_pos):
         # exact distance to ghost
         for ghost in ghosts_pos:
-            estimadedDistance = manhattanDistance(current_pos, ghost)
-            if estimadedDistance < 2:
+            estimadedDistance = euclideanDistance(current_pos, ghost)
+            if estimadedDistance <= 1:
                 if len(aStar(currentGameState, ghost, manhattanDistance)) <= 1:
                     return 1
         return 0
@@ -527,10 +535,13 @@ def betterEvaluationFunction(currentGameState: GameState):
     closest_food = DClosestFood(current_pos, foodGrid, ghosts_pos)
     # normalize base on maximum distance
     feat_DClosestFood = (maximum_distance - closest_food) / maximum_distance
+    # use Exp to make it more sensitive
+    feat_DClosestFood = math.exp(feat_DClosestFood)
     feat_currentScore = currentGameState.getScore()
+    feat_FoodCount = 1.0 / (len(foodGrid.asList()) + 1)
 
-    # print(feat_DClosestFood, feat_currentScore, feat_isNearGhost)
     features = [feat_DClosestFood,
+                feat_FoodCount,
                 feat_currentScore,
                 feat_isNearGhost]
 
@@ -557,5 +568,4 @@ def foodHeuristic(position, foodGrid):
     for food in food_list:
         if manhattanDistance(position, food) < manhattanDistance(position, closest_food):
             closest_food = food
-
     return manhattanDistance(position, closest_food)
