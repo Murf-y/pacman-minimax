@@ -26,6 +26,101 @@ import ghostAgents
 import textDisplay
 from game import Directions
 
+
+cache = {}
+def foodHeuristic(position, foodGrid):
+    "*** YOUR CODE HERE ***"
+
+    food_list = foodGrid.asList()
+
+    if len(food_list) == 0:
+        return 0
+    if len(food_list) == 1:
+        return heuristic_found_by_ga_for_food_problem(position, food_list[0])
+    
+    closest_point = food_list[0]
+    furthest_point = food_list[0]
+
+    """
+    How it works:
+    1. Find the closest point using heuristic found by GA
+    2. Find the furthest point using heuristic found by GA
+    3. use caching to store previous results (use problem.heuristicInfo to store the results)
+    4. return the sum of the estimate DISTANCE from pacman to the closest point and the estimate cost (using heuristic found by GA) from the closest point to the furthest point
+    """
+
+    for food in food_list:
+        estimated_distance_to_closest = 0
+        if str((position, closest_point)) in cache:
+            estimated_distance_to_closest = cache[str((position, closest_point))]
+        else:
+            estimated_distance_to_closest = heuristic_found_by_ga_for_food_problem(position, closest_point)
+            cache[str((position, closest_point))] = estimated_distance_to_closest
+        
+        estimated_distance_to_speculated_closest = heuristic_found_by_ga_for_food_problem(position, food)
+        if estimated_distance_to_speculated_closest < estimated_distance_to_closest:
+            closest_point = food
+            cache[str((position, closest_point))] = estimated_distance_to_speculated_closest
+        
+        estimated_distance_to_furthest = 0
+        if str((position, furthest_point)) in cache:
+            estimated_distance_to_furthest = cache[str((position, furthest_point))]
+        else:
+            estimated_distance_to_furthest = heuristic_found_by_ga_for_food_problem(position, furthest_point)
+            cache[str((position, furthest_point))] = estimated_distance_to_furthest
+        
+        estimated_distance_to_speculated_furthest = heuristic_found_by_ga_for_food_problem(position, food)
+        if estimated_distance_to_speculated_furthest > estimated_distance_to_furthest:
+            furthest_point = food
+            cache[str((position, furthest_point))] = estimated_distance_to_speculated_furthest
+    
+    return heuristic_found_by_ga_for_food_problem(position, closest_point) + heuristic_found_by_ga_for_food_problem(closest_point, furthest_point)
+
+def max_heuristic(current, goal):
+    return max(abs(current[0] - goal[0]), abs(current[1] - goal[1]))
+
+def min_heuristic(current, goal):
+    return min(abs(current[0] - goal[0]), abs(current[1] - goal[1]))
+
+def diagonal_distance(current, goal):
+    dx = abs(current[0] - goal[0])
+    dy = abs(current[1] - goal[1])
+    return (dx + dy) + (math.sqrt(2) - 2) * min(dx, dy)
+
+def heuristic_found_by_ga_for_food_problem(start, goal):
+    x1, y1 = start
+    x2, y2 = goal
+
+    diagonal = diagonal_distance(start, goal)
+    max_h = max_heuristic(start, goal)
+    min_h = min_heuristic(start, goal)
+
+    return max(diagonal, max_h, min_h)
+
+def aStar(gameState, goal: tuple, heuristic: callable):
+    """
+    A* algorithm
+    """
+    start = gameState.getPacmanPosition()
+    frontier = util.PriorityQueue()
+    frontier.push((start, []), 0)
+    explored = set()
+
+    while not frontier.isEmpty():
+        current, path = frontier.pop()
+        if current == goal:
+            return path
+        if current not in explored:
+            explored.add(current)
+            for next in gameState.getLegalActions():
+                successor = gameState.generateSuccessor(0, next)
+                nextPos = successor.getPacmanPosition()
+                if nextPos not in explored:
+                    newPath = path + [next]
+                    newCost = len(newPath) + heuristic(nextPos, goal)
+                    frontier.push((nextPos, newPath), newCost)
+    return []
+
 class GeneticAlgorithm:
 
     def __init__(self, 
@@ -72,38 +167,38 @@ class GeneticAlgorithm:
 
     def fitness_func(self, solution):
         # should maximize
-        #  run pacman game with solution as weights
-        def manhattanDistance(point1, point2):
-            "Returns the Manhattan distance between points "
-            return abs(point1[0] - point2[0]) + abs(point1[1] - point2[1])
-
         def customEvaluationFunction(currentGameState):
 
             def DClosestFood(current_pos, foodGrid, ghosts_pos):
-                closestFood = 1
-                food_distances = [manhattanDistance(current_pos, food) for food in foodGrid.asList()]
-                
-                if len(food_distances) > 0:
-                    closestFood = min(food_distances)
-
+                closestFood = foodHeuristic(current_pos, foodGrid)
+                if closestFood == 0:
+                    closestFood = 1
+                # if there is chance (thus manhattanDistance and not exact distance)
+                # that there is a ghost nearby dont risk it
                 for ghost in ghosts_pos:
                     if manhattanDistance(current_pos, ghost) < 2:
                         closestFood = 99999
                 return closestFood
-                    
+            
+            def isNearGhost(current_pos, ghosts_pos):
+                # exact distance to ghost
+                for ghost in ghosts_pos:
+                    estimadedDistance = manhattanDistance(current_pos, ghost)
+                    if estimadedDistance < 3:
+                        if len(aStar(currentGameState, ghost, manhattanDistance)) < 2:
+                            return 99999
+                return 0
+
             current_pos = currentGameState.getPacmanPosition()
             ghosts_pos = currentGameState.getGhostPositions()
 
             foodGrid = currentGameState.getFood()
             capsuleList = currentGameState.getCapsules()
 
-            numberOfFood = foodGrid.count()
-            numberOfCapsules = len(capsuleList)
-
-            features = [1.0 / DClosestFood(current_pos, foodGrid, ghosts_pos),
+            features = [1.0/DClosestFood(current_pos, foodGrid, ghosts_pos),
                         currentGameState.getScore(),
-                        numberOfFood,
-                        numberOfCapsules]
+                        isNearGhost(current_pos, ghosts_pos),
+                        ]
 
             score = 0
             for i in range(len(features)):
@@ -117,6 +212,7 @@ class GeneticAlgorithm:
         game = self.data.rules.newGame(self.data.layout, customAgent, baseGhosts, self.data.gameDisplay)
         game.run() # simulate the game using a custom evaluation function given by the solution (weights)
         score = game.state.getScore()
+        cache = {} # clear cache
 
         return score
 
@@ -283,17 +379,17 @@ def main( argv ):
     data = Data(used_layout, rules, gameDisplay, k, agentToUse)
     
     ga = GeneticAlgorithm(
-        n_genes = 4,
-        n_iterations = 20,
-        lchrom = 4,
+        n_genes = 3,
+        n_iterations = 10,
+        lchrom = 3,
         pcross = 0.8, 
         pmutation = 0.35,
         selection_type = 'ranking', 
-        popsize = 30,
+        popsize = 20,
         n_elites = 2,
         data = data,
-        MAX_VALUE = 500,
-        MIN_VALUE = -500,
+        MAX_VALUE = 1000,
+        MIN_VALUE = -1000,
     )
 
     best_solution, best_fitness = ga.optimize()

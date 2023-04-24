@@ -17,7 +17,7 @@ from game import Directions
 import random, util
 from game import Agent
 from pacman import GameState
-from sklearn.preprocessing import  StandardScaler, MinMaxScaler, MaxAbsScaler, RobustScaler, Normalizer
+import math
 
 # python pacman.py -l smallClassic -k 7 -p ReflexAgent
 class ReflexAgent(Agent):
@@ -442,6 +442,29 @@ class ExpectimaxAlphaBetaPruningAgent(MultiAgentSearchAgent):
 
         return bestAction
 
+def aStar(gameState: GameState, goal: tuple, heuristic: callable):
+    """
+    A* algorithm
+    """
+    start = gameState.getPacmanPosition()
+    frontier = util.PriorityQueue()
+    frontier.push((start, []), 0)
+    explored = set()
+
+    while not frontier.isEmpty():
+        current, path = frontier.pop()
+        if current == goal:
+            return path
+        if current not in explored:
+            explored.add(current)
+            for next in gameState.getLegalActions():
+                successor = gameState.generateSuccessor(0, next)
+                nextPos = successor.getPacmanPosition()
+                if nextPos not in explored:
+                    newPath = path + [next]
+                    newCost = len(newPath) + heuristic(nextPos, goal)
+                    frontier.push((nextPos, newPath), newCost)
+    return []
 def betterEvaluationFunction(currentGameState: GameState):
     """
     Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
@@ -450,39 +473,32 @@ def betterEvaluationFunction(currentGameState: GameState):
     DESCRIPTION: <write something here so we know what you did>
     """
     "*** YOUR CODE HERE ***"
+
     solution = [
         124,
         319,
-        200,
-        162,
-        -162,
-        453
+        -500,
     ]
 
     def DClosestFood(current_pos, foodGrid, ghosts_pos):
-        closestFood = 1
-        food_distances = [manhattanDistance(current_pos, food) for food in foodGrid.asList()]
-        
-        if len(food_distances) > 0:
-            closestFood = min(food_distances)
-        # if food was near a ghost, then better not go there
+        closestFood = foodHeuristic(current_pos, foodGrid)
+        if closestFood == 0:
+            closestFood = 1
+        # if there is chance (thus manhattanDistance and not exact distance)
+        # that there is a ghost nearby dont risk it
         for ghost in ghosts_pos:
             if manhattanDistance(current_pos, ghost) < 2:
                 closestFood = 99999
         return closestFood
     
     def isNearGhost(current_pos, ghosts_pos):
+        # exact distance to ghost
         for ghost in ghosts_pos:
-            if manhattanDistance(current_pos, ghost) < 2:
-                return -99999
+            estimadedDistance = manhattanDistance(current_pos, ghost)
+            if estimadedDistance < 3:
+                if len(aStar(currentGameState, ghost, manhattanDistance)) < 2:
+                    return 99999
         return 0
-    
-    def numberOfNonScaredGhosts(currentGameState, ghostStates):
-        numberOfNonScaredGhosts = 0
-        for ghost in ghostStates:
-            if ghost.scaredTimer == 0:
-                numberOfNonScaredGhosts += 1
-        return numberOfNonScaredGhosts
 
     current_pos = currentGameState.getPacmanPosition()
     ghosts_pos = currentGameState.getGhostPositions()
@@ -490,19 +506,10 @@ def betterEvaluationFunction(currentGameState: GameState):
     foodGrid = currentGameState.getFood()
     capsuleList = currentGameState.getCapsules()
 
-    numberOfFood = foodGrid.count()
-    if numberOfFood == 0:
-        numberOfFood = 1
-    numberOfCapsules = len(capsuleList)
-    if numberOfCapsules == 0:
-        numberOfCapsules = 1
-
-    features = [1.0 / DClosestFood(current_pos, foodGrid, ghosts_pos),
+    features = [1.0/DClosestFood(current_pos, foodGrid, ghosts_pos),
                 currentGameState.getScore(),
                 isNearGhost(current_pos, ghosts_pos),
-                numberOfNonScaredGhosts(currentGameState, currentGameState.getGhostStates()),
-                1/numberOfFood,
-                1/numberOfCapsules]
+                ]
 
     score = 0
     for i in range(len(features)):
@@ -512,85 +519,73 @@ def betterEvaluationFunction(currentGameState: GameState):
 # Abbreviation
 better = betterEvaluationFunction
 
-            # solution = [float(x) / sum(solution) for x in solution]
+cache = {}
+def foodHeuristic(position, foodGrid):
+    "*** YOUR CODE HERE ***"
 
-            # a = solution[0]
-            # b = solution[1]
-            # c = solution[2]
-            # d = solution[3]
-            # e = solution[4]
-            # f = solution[5]
-            # g = solution[6]
-            # h = solution[7]
-            # i = solution[8]
+    food_list = foodGrid.asList()
 
-            # def DClosestFood(current_pos, foodGrid):
-            #     closestFood = 1
-            #     for food in foodGrid.asList():
-            #         closestFood = min(closestFood, manhattanDistance(current_pos, food))
-            #     return closestFood
-            
-            # def DClosestGhost(current_pos, ghostStates):
-            #     # distance to the closest non scared ghost
-            #     closestGhost = 1
-            #     for ghost in ghostStates:
-            #         if ghost.scaredTimer == 0:
-            #             closestGhost = min(closestGhost, manhattanDistance(current_pos, ghost.getPosition()))
-            #     return closestGhost
-            
-            # def DClosestCapsule(current_pos, capsuleList):
-            #     closestCapsule = 1
-            #     for capsule in capsuleList:
-            #         closestCapsule = min(closestCapsule, manhattanDistance(current_pos, capsule))
-            #     return closestCapsule
-            
-            # def numScaredGhosts(current_pos, ghostStates):
-            #     numGhosts = 1
-            #     for ghost in ghostStates:
-            #         if ghost.scaredTimer > 0 and manhattanDistance(current_pos, ghost.getPosition()) < 2:
-            #             numGhosts += 1
-            #     return numGhosts
-            
-            # def numNonScaredGhosts(current_pos, ghostStates):
-            #     numGhosts = 0
-            #     for ghost in ghostStates:
-            #         if ghost.scaredTimer == 0 and manhattanDistance(current_pos, ghost.getPosition()) < 2:
-            #             numGhosts += 1
-            #     return numGhosts
-            
-            # def isItWorthToEatTheClosestFood(current_pos, foodGrid, ghostStates):
-            #     closestFood = DClosestFood(current_pos, foodGrid)
-            #     closestGhost = DClosestGhost(current_pos, ghostStates)
-            #     if closestFood < closestGhost:
-            #         return 1
-            #     return 0
-            
-            # def isItWorthToEatTheClosestCapsule(current_pos, capsuleList, ghostStates):
-            #     closestCapsule = DClosestCapsule(current_pos, capsuleList)
-            #     closestGhost = DClosestGhost(current_pos, ghostStates)
-            #     if closestCapsule < closestGhost:
-            #         return 1
-            #     return 0            
+    if len(food_list) == 0:
+        return 0
+    if len(food_list) == 1:
+        return heuristic_found_by_ga_for_food_problem(position, food_list[0])
+    
+    closest_point = food_list[0]
+    furthest_point = food_list[0]
 
-            # def isThereGhostNearby(current_pos, ghostStates):
-            #     for ghost in ghostStates:
-            #         if manhattanDistance(current_pos, ghost.getPosition()) < 2:
-            #             return 1
-            #     return 0
-            
-            # current_pos = currentGameState.getPacmanPosition()
-            # foodGrid = currentGameState.getFood()
-            # ghostStates = currentGameState.getGhostStates()
-            # capsuleList = currentGameState.getCapsules()
-            # score = 0
+    """
+    How it works:
+    1. Find the closest point using heuristic found by GA
+    2. Find the furthest point using heuristic found by GA
+    3. use caching to store previous results (use problem.heuristicInfo to store the results)
+    4. return the sum of the estimate DISTANCE from pacman to the closest point and the estimate cost (using heuristic found by GA) from the closest point to the furthest point
+    """
 
-            # # add the features to the score with their weights
-            # score += (DClosestFood(current_pos, foodGrid)) * a
-            # score += (DClosestCapsule(current_pos, capsuleList)) * c
-            # score += (DClosestGhost(current_pos, ghostStates)) * b
-            # score += (isItWorthToEatTheClosestFood(current_pos, foodGrid, ghostStates)) * f
-            # score += (isItWorthToEatTheClosestCapsule(current_pos, capsuleList, ghostStates)) * g
-            # score += (isThereGhostNearby(current_pos, ghostStates)) * h
-            # score += (currentGameState.getScore()) * i
+    for food in food_list:
+        estimated_distance_to_closest = 0
+        if str((position, closest_point)) in cache:
+            estimated_distance_to_closest = cache[str((position, closest_point))]
+        else:
+            estimated_distance_to_closest = heuristic_found_by_ga_for_food_problem(position, closest_point)
+            cache[str((position, closest_point))] = estimated_distance_to_closest
+        
+        estimated_distance_to_speculated_closest = heuristic_found_by_ga_for_food_problem(position, food)
+        if estimated_distance_to_speculated_closest < estimated_distance_to_closest:
+            closest_point = food
+            cache[str((position, closest_point))] = estimated_distance_to_speculated_closest
+        
+        estimated_distance_to_furthest = 0
+        if str((position, furthest_point)) in cache:
+            estimated_distance_to_furthest = cache[str((position, furthest_point))]
+        else:
+            estimated_distance_to_furthest = heuristic_found_by_ga_for_food_problem(position, furthest_point)
+            cache[str((position, furthest_point))] = estimated_distance_to_furthest
+        
+        estimated_distance_to_speculated_furthest = heuristic_found_by_ga_for_food_problem(position, food)
+        if estimated_distance_to_speculated_furthest > estimated_distance_to_furthest:
+            furthest_point = food
+            cache[str((position, furthest_point))] = estimated_distance_to_speculated_furthest
+    
+    return heuristic_found_by_ga_for_food_problem(position, closest_point) + heuristic_found_by_ga_for_food_problem(closest_point, furthest_point)
 
-            # return score
+def max_heuristic(current, goal):
+    return max(abs(current[0] - goal[0]), abs(current[1] - goal[1]))
+
+def min_heuristic(current, goal):
+    return min(abs(current[0] - goal[0]), abs(current[1] - goal[1]))
+
+def diagonal_distance(current, goal):
+    dx = abs(current[0] - goal[0])
+    dy = abs(current[1] - goal[1])
+    return (dx + dy) + (math.sqrt(2) - 2) * min(dx, dy)
+
+def heuristic_found_by_ga_for_food_problem(start, goal):
+    x1, y1 = start
+    x2, y2 = goal
+
+    diagonal = diagonal_distance(start, goal)
+    max_h = max_heuristic(start, goal)
+    min_h = min_heuristic(start, goal)
+
+    return max(diagonal, max_h, min_h)
+
