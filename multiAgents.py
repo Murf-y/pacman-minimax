@@ -137,6 +137,7 @@ class MultiAgentSearchAgent(Agent):
             self.evaluationFunction = actualEvalFunc
             
         self.depth = int(depth)
+        self.temperature = 1.0
 
 # python pacman.py -l smallClassic -k 7 -p MinimaxAgent 
 class MinimaxAgent(MultiAgentSearchAgent):
@@ -253,8 +254,17 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
             successorValue = self.alphaBeta(successor, successorIndex, successorDepth, alpha, beta)[0]
 
             if successorValue > v:
-                v = successorValue
-                bestAction = action
+                if action == Directions.STOP:
+                    x = (self.temperature - 0.5) * 12
+                    s = 1 / (1 + math.exp(-x))
+                    reduce_amount = s * 0.9 + 0.1
+                    successorValue *= reduce_amount
+                    if successorValue > v:
+                        v = successorValue
+                        bestAction = action
+                else:
+                    v = successorValue
+                    bestAction = action
 
             if v > beta:
                 return v, bestAction
@@ -293,6 +303,9 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         """
         "*** YOUR CODE HERE ***"
 
+        self.temperature -= 0.005
+        if self.temperature < 0.01:
+            self.temperature = 0.01
         bestScore, bestAction = self.alphaBeta(gameState, 0, 0, float("-inf"), float("inf"))
 
         return bestAction
@@ -465,6 +478,8 @@ def aStar(gameState: GameState, goal: tuple, heuristic: callable):
                     newCost = len(newPath) + heuristic(nextPos, goal)
                     frontier.push((nextPos, newPath), newCost)
     return []
+
+
 def betterEvaluationFunction(currentGameState: GameState):
     """
     Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
@@ -475,8 +490,8 @@ def betterEvaluationFunction(currentGameState: GameState):
     "*** YOUR CODE HERE ***"
 
     solution = [
-        124,
-        319,
+        200,
+        300,
         -500,
     ]
 
@@ -487,7 +502,7 @@ def betterEvaluationFunction(currentGameState: GameState):
         # if there is chance (thus manhattanDistance and not exact distance)
         # that there is a ghost nearby dont risk it
         for ghost in ghosts_pos:
-            if manhattanDistance(current_pos, ghost) < 2:
+            if manhattanDistance(current_pos, ghost) <= 1:
                 closestFood = 99999
         return closestFood
     
@@ -495,9 +510,9 @@ def betterEvaluationFunction(currentGameState: GameState):
         # exact distance to ghost
         for ghost in ghosts_pos:
             estimadedDistance = manhattanDistance(current_pos, ghost)
-            if estimadedDistance < 3:
-                if len(aStar(currentGameState, ghost, manhattanDistance)) < 2:
-                    return 99999
+            if estimadedDistance < 2:
+                if len(aStar(currentGameState, ghost, manhattanDistance)) <= 1:
+                    return 1
         return 0
 
     current_pos = currentGameState.getPacmanPosition()
@@ -506,10 +521,18 @@ def betterEvaluationFunction(currentGameState: GameState):
     foodGrid = currentGameState.getFood()
     capsuleList = currentGameState.getCapsules()
 
-    features = [1.0/DClosestFood(current_pos, foodGrid, ghosts_pos),
-                currentGameState.getScore(),
-                isNearGhost(current_pos, ghosts_pos),
-                ]
+    feat_isNearGhost = isNearGhost(current_pos, ghosts_pos)
+
+    maximum_distance = currentGameState.data.layout.width + currentGameState.data.layout.height
+    closest_food = DClosestFood(current_pos, foodGrid, ghosts_pos)
+    # normalize base on maximum distance
+    feat_DClosestFood = (maximum_distance - closest_food) / maximum_distance
+    feat_currentScore = currentGameState.getScore()
+
+    # print(feat_DClosestFood, feat_currentScore, feat_isNearGhost)
+    features = [feat_DClosestFood,
+                feat_currentScore,
+                feat_isNearGhost]
 
     score = 0
     for i in range(len(features)):
@@ -519,7 +542,6 @@ def betterEvaluationFunction(currentGameState: GameState):
 # Abbreviation
 better = betterEvaluationFunction
 
-cache = {}
 def foodHeuristic(position, foodGrid):
     "*** YOUR CODE HERE ***"
 
@@ -528,64 +550,12 @@ def foodHeuristic(position, foodGrid):
     if len(food_list) == 0:
         return 0
     if len(food_list) == 1:
-        return heuristic_found_by_ga_for_food_problem(position, food_list[0])
-    
-    closest_point = food_list[0]
-    furthest_point = food_list[0]
+        return manhattanDistance(position, food_list[0])
 
-    """
-    How it works:
-    1. Find the closest point using heuristic found by GA
-    2. Find the furthest point using heuristic found by GA
-    3. use caching to store previous results (use problem.heuristicInfo to store the results)
-    4. return the sum of the estimate DISTANCE from pacman to the closest point and the estimate cost (using heuristic found by GA) from the closest point to the furthest point
-    """
+    closest_food = food_list[0]
 
     for food in food_list:
-        estimated_distance_to_closest = 0
-        if str((position, closest_point)) in cache:
-            estimated_distance_to_closest = cache[str((position, closest_point))]
-        else:
-            estimated_distance_to_closest = heuristic_found_by_ga_for_food_problem(position, closest_point)
-            cache[str((position, closest_point))] = estimated_distance_to_closest
-        
-        estimated_distance_to_speculated_closest = heuristic_found_by_ga_for_food_problem(position, food)
-        if estimated_distance_to_speculated_closest < estimated_distance_to_closest:
-            closest_point = food
-            cache[str((position, closest_point))] = estimated_distance_to_speculated_closest
-        
-        estimated_distance_to_furthest = 0
-        if str((position, furthest_point)) in cache:
-            estimated_distance_to_furthest = cache[str((position, furthest_point))]
-        else:
-            estimated_distance_to_furthest = heuristic_found_by_ga_for_food_problem(position, furthest_point)
-            cache[str((position, furthest_point))] = estimated_distance_to_furthest
-        
-        estimated_distance_to_speculated_furthest = heuristic_found_by_ga_for_food_problem(position, food)
-        if estimated_distance_to_speculated_furthest > estimated_distance_to_furthest:
-            furthest_point = food
-            cache[str((position, furthest_point))] = estimated_distance_to_speculated_furthest
-    
-    return heuristic_found_by_ga_for_food_problem(position, closest_point) + heuristic_found_by_ga_for_food_problem(closest_point, furthest_point)
+        if manhattanDistance(position, food) < manhattanDistance(position, closest_food):
+            closest_food = food
 
-def max_heuristic(current, goal):
-    return max(abs(current[0] - goal[0]), abs(current[1] - goal[1]))
-
-def min_heuristic(current, goal):
-    return min(abs(current[0] - goal[0]), abs(current[1] - goal[1]))
-
-def diagonal_distance(current, goal):
-    dx = abs(current[0] - goal[0])
-    dy = abs(current[1] - goal[1])
-    return (dx + dy) + (math.sqrt(2) - 2) * min(dx, dy)
-
-def heuristic_found_by_ga_for_food_problem(start, goal):
-    x1, y1 = start
-    x2, y2 = goal
-
-    diagonal = diagonal_distance(start, goal)
-    max_h = max_heuristic(start, goal)
-    min_h = min_heuristic(start, goal)
-
-    return max(diagonal, max_h, min_h)
-
+    return manhattanDistance(position, closest_food)

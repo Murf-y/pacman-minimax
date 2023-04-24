@@ -25,7 +25,7 @@ import multiAgents
 import ghostAgents
 import textDisplay
 from game import Directions
-
+import util
 
 cache = {}
 def foodHeuristic(position, foodGrid):
@@ -86,6 +86,9 @@ def diagonal_distance(current, goal):
     dx = abs(current[0] - goal[0])
     dy = abs(current[1] - goal[1])
     return (dx + dy) + (math.sqrt(2) - 2) * min(dx, dy)
+
+def manhattanDistance(current, goal):
+    return abs(current[0] - goal[0]) + abs(current[1] - goal[1])
 
 def heuristic_found_by_ga_for_food_problem(start, goal):
     x1, y1 = start
@@ -168,7 +171,6 @@ class GeneticAlgorithm:
     def fitness_func(self, solution):
         # should maximize
         def customEvaluationFunction(currentGameState):
-
             def DClosestFood(current_pos, foodGrid, ghosts_pos):
                 closestFood = foodHeuristic(current_pos, foodGrid)
                 if closestFood == 0:
@@ -207,11 +209,12 @@ class GeneticAlgorithm:
 
         # All MultiAgentSearchAgent have the same __init__ function 
         # thus we can generlize and pass the agent to the genetic algorithm using command line
-        customAgent = self.data.agentToUse(actualEvalFunc=customEvaluationFunction, depth=2)
+        customAgent = self.data.agentToUse(actualEvalFunc=customEvaluationFunction, evalFn="doesntexists", depth=2)
         baseGhosts =  [ghostAgents.DirectionalGhost(i+1) for i in range(self.data.numberOfGhosts)]
         game = self.data.rules.newGame(self.data.layout, customAgent, baseGhosts, self.data.gameDisplay)
         game.run() # simulate the game using a custom evaluation function given by the solution (weights)
         score = game.state.getScore()
+        print("Individual score: ", score, " with weights: ", solution, "\n")
         cache = {} # clear cache
 
         return score
