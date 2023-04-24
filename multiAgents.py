@@ -17,6 +17,7 @@ from game import Directions
 import random, util
 from game import Agent
 from pacman import GameState
+from sklearn.preprocessing import  StandardScaler, MinMaxScaler, MaxAbsScaler, RobustScaler, Normalizer
 
 # python pacman.py -l smallClassic -k 7 -p ReflexAgent
 class ReflexAgent(Agent):
@@ -128,9 +129,13 @@ class MultiAgentSearchAgent(Agent):
     is another abstract class.
     """
 
-    def __init__(self, evalFn = 'scoreEvaluationFunction', depth = '2'):
+    def __init__(self, actualEvalFunc=lambda x: 0, evalFn = 'scoreEvaluationFunction', depth = '2'):
         self.index = 0 # Pacman is always agent index 0
-        self.evaluationFunction = util.lookup(evalFn, globals())
+        try:
+            self.evaluationFunction = util.lookup(evalFn, globals())
+        except:
+            self.evaluationFunction = actualEvalFunc
+            
         self.depth = int(depth)
 
 # python pacman.py -l smallClassic -k 7 -p MinimaxAgent 
@@ -217,7 +222,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
 
         return bestAction
 
-# python pacman.py -p AlphaBetaAgent -l smallClassic -k 10 -a depth=2,evalFn=better -q
+# python pacman.py -p AlphaBetaAgent -l smallClassic -k 10 -a depth=2,evalFn=better --frameTime 0 -q -n 5
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
     Your minimax agent with alpha-beta pruning (question 3)
@@ -292,7 +297,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
 
         return bestAction
 
-# python pacman.py -p ExpectimaxAgent -l smallClassic -k 10 -a depth=2,evalFn=better -q
+# python pacman.py -p ExpectimaxAgent -l smallClassic -k 10 -a depth=2,evalFn=better --frameTime 0 -q -n 5
 class ExpectimaxAgent(MultiAgentSearchAgent):
     """
       Your expectimax agent (question 4)
@@ -364,7 +369,7 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
 
         return bestAction
 
-# python pacman.py -p ExpectimaxAlphaBetaPruningAgent -l smallClassic -k 10 -a depth=2,evalFn=better -q
+# python pacman.py -p ExpectimaxAlphaBetaPruningAgent -l smallClassic -k 10 -a depth=2,evalFn=better --frameTime 0 -q -n 5
 class ExpectimaxAlphaBetaPruningAgent(MultiAgentSearchAgent):
     def alphaBeta(self, gameState, agentIndex, depth, alpha, beta):
         if gameState.isWin() or gameState.isLose() or depth == self.depth:
@@ -445,50 +450,147 @@ def betterEvaluationFunction(currentGameState: GameState):
     DESCRIPTION: <write something here so we know what you did>
     """
     "*** YOUR CODE HERE ***"
-    # return currentGameState.getScore()
+    solution = [
+        124,
+        319,
+        200,
+        162,
+        -162,
+        453
+    ]
 
-    def getClosestFood(current_pos, foodGrid):
+    def DClosestFood(current_pos, foodGrid, ghosts_pos):
         closestFood = 1
-        for food in foodGrid.asList():
-            closestFood = min(closestFood, manhattanDistance(current_pos, food))
+        food_distances = [manhattanDistance(current_pos, food) for food in foodGrid.asList()]
+        
+        if len(food_distances) > 0:
+            closestFood = min(food_distances)
+        # if food was near a ghost, then better not go there
+        for ghost in ghosts_pos:
+            if manhattanDistance(current_pos, ghost) < 2:
+                closestFood = 99999
         return closestFood
     
-    def getClosestGhost(current_pos, ghostStates):
-        closestGhost = 1
+    def isNearGhost(current_pos, ghosts_pos):
+        for ghost in ghosts_pos:
+            if manhattanDistance(current_pos, ghost) < 2:
+                return -99999
+        return 0
+    
+    def numberOfNonScaredGhosts(currentGameState, ghostStates):
+        numberOfNonScaredGhosts = 0
         for ghost in ghostStates:
-            closestGhost = min(closestGhost, manhattanDistance(current_pos, ghost.getPosition()))
-        return closestGhost
-    
-    def getClosestCapsule(current_pos, capsuleList):
-        closestCapsule = 1
-        for capsule in capsuleList:
-            closestCapsule = min(closestCapsule, manhattanDistance(current_pos, capsule))
-        return closestCapsule
-    
-    def scaredGhosts(current_pos, ghostStates):
-        numGhosts = 1
-        for ghost in ghostStates:
-            if ghost.scaredTimer > 0 and manhattanDistance(current_pos, ghost.getPosition()) < 2:
-                numGhosts += 1
-        return numGhosts
-    
-    def nonScaredGhosts(current_pos, ghostStates):
-        numGhosts = 0
-        for ghost in ghostStates:
-            if ghost.scaredTimer == 0 and manhattanDistance(current_pos, ghost.getPosition()) < 2:
-                numGhosts += 1
-        return ghostScore
-    
-    def isClosestCapsuleCloserThanClosestNonScaredGhost(current_pos, capsuleList, ghostStates):
-        closestCapsule = getClosestCapsule(current_pos, capsuleList)
-        closestGhost = getClosestGhost(current_pos, ghostStates)
-        return 1 if closestCapsule < closestGhost else 0 
-    
-    def isClosestFoodCloserThanClosestNonScaredGhost(current_pos, foodGrid, ghostStates):
-        closestFood = getClosestFood(current_pos, foodGrid)
-        closestGhost = getClosestGhost(current_pos, ghostStates)
-        return 1 if closestFood < closestGhost else 0
+            if ghost.scaredTimer == 0:
+                numberOfNonScaredGhosts += 1
+        return numberOfNonScaredGhosts
 
+    current_pos = currentGameState.getPacmanPosition()
+    ghosts_pos = currentGameState.getGhostPositions()
+
+    foodGrid = currentGameState.getFood()
+    capsuleList = currentGameState.getCapsules()
+
+    numberOfFood = foodGrid.count()
+    if numberOfFood == 0:
+        numberOfFood = 1
+    numberOfCapsules = len(capsuleList)
+    if numberOfCapsules == 0:
+        numberOfCapsules = 1
+
+    features = [1.0 / DClosestFood(current_pos, foodGrid, ghosts_pos),
+                currentGameState.getScore(),
+                isNearGhost(current_pos, ghosts_pos),
+                numberOfNonScaredGhosts(currentGameState, currentGameState.getGhostStates()),
+                1/numberOfFood,
+                1/numberOfCapsules]
+
+    score = 0
+    for i in range(len(features)):
+        score += features[i] * solution[i]
     return score
+
 # Abbreviation
 better = betterEvaluationFunction
+
+            # solution = [float(x) / sum(solution) for x in solution]
+
+            # a = solution[0]
+            # b = solution[1]
+            # c = solution[2]
+            # d = solution[3]
+            # e = solution[4]
+            # f = solution[5]
+            # g = solution[6]
+            # h = solution[7]
+            # i = solution[8]
+
+            # def DClosestFood(current_pos, foodGrid):
+            #     closestFood = 1
+            #     for food in foodGrid.asList():
+            #         closestFood = min(closestFood, manhattanDistance(current_pos, food))
+            #     return closestFood
+            
+            # def DClosestGhost(current_pos, ghostStates):
+            #     # distance to the closest non scared ghost
+            #     closestGhost = 1
+            #     for ghost in ghostStates:
+            #         if ghost.scaredTimer == 0:
+            #             closestGhost = min(closestGhost, manhattanDistance(current_pos, ghost.getPosition()))
+            #     return closestGhost
+            
+            # def DClosestCapsule(current_pos, capsuleList):
+            #     closestCapsule = 1
+            #     for capsule in capsuleList:
+            #         closestCapsule = min(closestCapsule, manhattanDistance(current_pos, capsule))
+            #     return closestCapsule
+            
+            # def numScaredGhosts(current_pos, ghostStates):
+            #     numGhosts = 1
+            #     for ghost in ghostStates:
+            #         if ghost.scaredTimer > 0 and manhattanDistance(current_pos, ghost.getPosition()) < 2:
+            #             numGhosts += 1
+            #     return numGhosts
+            
+            # def numNonScaredGhosts(current_pos, ghostStates):
+            #     numGhosts = 0
+            #     for ghost in ghostStates:
+            #         if ghost.scaredTimer == 0 and manhattanDistance(current_pos, ghost.getPosition()) < 2:
+            #             numGhosts += 1
+            #     return numGhosts
+            
+            # def isItWorthToEatTheClosestFood(current_pos, foodGrid, ghostStates):
+            #     closestFood = DClosestFood(current_pos, foodGrid)
+            #     closestGhost = DClosestGhost(current_pos, ghostStates)
+            #     if closestFood < closestGhost:
+            #         return 1
+            #     return 0
+            
+            # def isItWorthToEatTheClosestCapsule(current_pos, capsuleList, ghostStates):
+            #     closestCapsule = DClosestCapsule(current_pos, capsuleList)
+            #     closestGhost = DClosestGhost(current_pos, ghostStates)
+            #     if closestCapsule < closestGhost:
+            #         return 1
+            #     return 0            
+
+            # def isThereGhostNearby(current_pos, ghostStates):
+            #     for ghost in ghostStates:
+            #         if manhattanDistance(current_pos, ghost.getPosition()) < 2:
+            #             return 1
+            #     return 0
+            
+            # current_pos = currentGameState.getPacmanPosition()
+            # foodGrid = currentGameState.getFood()
+            # ghostStates = currentGameState.getGhostStates()
+            # capsuleList = currentGameState.getCapsules()
+            # score = 0
+
+            # # add the features to the score with their weights
+            # score += (DClosestFood(current_pos, foodGrid)) * a
+            # score += (DClosestCapsule(current_pos, capsuleList)) * c
+            # score += (DClosestGhost(current_pos, ghostStates)) * b
+            # score += (isItWorthToEatTheClosestFood(current_pos, foodGrid, ghostStates)) * f
+            # score += (isItWorthToEatTheClosestCapsule(current_pos, capsuleList, ghostStates)) * g
+            # score += (isThereGhostNearby(current_pos, ghostStates)) * h
+            # score += (currentGameState.getScore()) * i
+
+            # return score

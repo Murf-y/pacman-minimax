@@ -77,70 +77,47 @@ class GeneticAlgorithm:
             "Returns the Manhattan distance between points "
             return abs(point1[0] - point2[0]) + abs(point1[1] - point2[1])
 
-        def customEvaluationFunction(self, currentGameState, action):
-            a = solution[0]
-            b = solution[1]
-            c = solution[2]
-            d = solution[3]
-            e = solution[4]
-            f = solution[5]
-            g = solution[6]
+        def customEvaluationFunction(currentGameState):
 
-            # Useful information you can extract from a GameState (pacman.py)
-            successorGameState = currentGameState.generatePacmanSuccessor(action)
-            newPos = successorGameState.getPacmanPosition()
-            newFood = successorGameState.getFood()
-            newGhostStates = successorGameState.getGhostStates()
-            currentFood = currentGameState.getFood()
+            def DClosestFood(current_pos, foodGrid, ghosts_pos):
+                closestFood = 1
+                food_distances = [manhattanDistance(current_pos, food) for food in foodGrid.asList()]
+                
+                if len(food_distances) > 0:
+                    closestFood = min(food_distances)
 
-            # Initialize the heuristic value to zero
-            heuristicValue = 0
+                for ghost in ghosts_pos:
+                    if manhattanDistance(current_pos, ghost) < 2:
+                        closestFood = 99999
+                return closestFood
+                    
+            current_pos = currentGameState.getPacmanPosition()
+            ghosts_pos = currentGameState.getGhostPositions()
 
-            # Check if the game is over
-            if successorGameState.isWin():
-                return float("inf")
+            foodGrid = currentGameState.getFood()
+            capsuleList = currentGameState.getCapsules()
 
-            if successorGameState.isLose():
-                return float("-inf")
+            numberOfFood = foodGrid.count()
+            numberOfCapsules = len(capsuleList)
 
-            # Compute the number of food pellets in the current and successor states
-            numCurrentFood = currentFood.count()
-            numSuccessorFood = newFood.count()
-            min_food_distance = float("inf")
-            sum_ghost_distances = 0
-            newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
-            currentGhostPositions = currentGameState.getGhostPositions()
-            capsules = currentGameState.getCapsules()
-            min_capsule_distance = float("inf")
+            features = [1.0 / DClosestFood(current_pos, foodGrid, ghosts_pos),
+                        currentGameState.getScore(),
+                        numberOfFood,
+                        numberOfCapsules]
 
-            # Compute the distance to the closest food pellet
-            for food in newFood.asList():
-                min_food_distance = min(min_food_distance, manhattanDistance(newPos, food))
-            
-            # Compute the distance to the closest ghost
-            for ghost in newGhostStates:
-                sum_ghost_distances += manhattanDistance(newPos, ghost.getPosition())
-            
-            for capsule in capsules:
-                min_capsule_distance = min(min_capsule_distance, manhattanDistance(newPos, capsule))
-
-            # Compute the heuristic value
-            score = a * (currentGameState.getNumFood() - successorGameState.getNumFood()) + b * (1 / min_food_distance) + c * (1 / sum_ghost_distances) + d * sum(newScaredTimes) + e * (1 if newPos in currentGhostPositions else 0) + f * (newPos in capsules) + g * (1/min_capsule_distance if min_capsule_distance != 0 else 0) +  (-1000 if action == Directions.STOP else 0)
+            score = 0
+            for i in range(len(features)):
+                score += features[i] * solution[i]
             return score
 
-        customAgent = type('CustomReflexAgent', (multiAgents.ReflexAgent,), {'evaluationFunction': customEvaluationFunction})
-        game = self.data.rules.newGame(self.data.layout, customAgent(), self.data.ghostAgents, self.data.gameDisplay)
-        # game.run()
-        # score = game.state.getScore()
-        # run it 5 times and take the average
-        scores = []
-        for i in range(2):
-            game = self.data.rules.newGame(self.data.layout, customAgent(), self.data.ghostAgents, self.data.gameDisplay)
-            game.run()
-            scores.append(game.state.getScore())
-        score = mean(scores)
+        # All MultiAgentSearchAgent have the same __init__ function 
+        # thus we can generlize and pass the agent to the genetic algorithm using command line
+        customAgent = self.data.agentToUse(actualEvalFunc=customEvaluationFunction, depth=2)
+        baseGhosts =  [ghostAgents.DirectionalGhost(i+1) for i in range(self.data.numberOfGhosts)]
+        game = self.data.rules.newGame(self.data.layout, customAgent, baseGhosts, self.data.gameDisplay)
+        game.run() # simulate the game using a custom evaluation function given by the solution (weights)
+        score = game.state.getScore()
 
-        print("Individual: ", solution, "Score: ", score)
         return score
 
     def get_fitness_scores(self):
@@ -156,7 +133,6 @@ class GeneticAlgorithm:
         ind = np.argsort(scores)
         best_ind = ind[-1]
         return best_ind
-
 
     def select(self, scores, selection_type):
         if selection_type not in ['ranking', 'roulette']:
@@ -186,8 +162,6 @@ class GeneticAlgorithm:
         children = [tuple(child1), tuple(child2)]
         return children
     
-
-
     def __mutation(self, individual):
 
         index = np.random.choice(len(individual))
@@ -211,6 +185,7 @@ class GeneticAlgorithm:
 
             elites = [self.population[i] for i in ind[-self.n_elites:]]
 
+            print("Elites for iteration {} are {}".format(i, elites))
             #append the elites to the population
             new_population = [tuple(elite) for elite in elites]
 
@@ -263,12 +238,14 @@ class GeneticAlgorithm:
 def default(str):
     return str + ' [Default: %default]'
 
+# A wrapper class just to hold data to be sent to the genetic algorithm
 class Data:
-    def __init__(self, layout, rules, gameDisplay, ghostAgents):
+    def __init__(self, layout, rules, gameDisplay, numberOfGhosts, agentToUse):
         self.layout = layout
         self.rules = rules
         self.gameDisplay = gameDisplay
-        self.ghostAgents = ghostAgents
+        self.numberOfGhosts = numberOfGhosts
+        self.agentToUse = agentToUse
 
 def main( argv ):
     from optparse import OptionParser
@@ -283,6 +260,9 @@ def main( argv ):
     parser.add_option('-l', '--layout', dest='layout',
                       help=default('the LAYOUT_FILE from which to load the map layout'),
                       metavar='LAYOUT_FILE', default='smallClassic')
+    parser.add_option('-p', '--pacman', dest='pacman',
+                        help=default('the agent TYPE in the pacmanAgents module to use'),
+                        metavar='TYPE', default='AlphaBetaAgent')
     options, otherjunk = parser.parse_args(argv)
     if len(otherjunk) != 0:
         raise Exception('Command line input not understood: ' + str(otherjunk))
@@ -290,28 +270,30 @@ def main( argv ):
     used_layout = layout.getLayout(options.layout)
     k = options.numGhosts
 
+    agentToUse = options.pacman
+
+    if (agentToUse not in ["MinimaxAgent", "AlphaBetaAgent", "ExpectimaxAgent"]):
+        raise Exception("Invalid agent to use")
+    # get refrence to the class based on the string
+    agentToUse = getattr(multiAgents, agentToUse)
     rules = pacman.ClassicGameRules()
     gameDisplay = textDisplay.NullGraphics()
     rules.quiet = True
     
-    data = Data(used_layout, rules, gameDisplay, [ghostAgents.DirectionalGhost(i+1) for i in range(k)])
-    # customAgent = type('CustomReflexAgent', (multiAgents.ReflexAgent,), {'evaluationFunction': customEvaluationFunction})
-    # game = rules.newGame(data.layout, customAgent(), data.ghostAgents, data.gameDisplay)
-    # game.run()
-
+    data = Data(used_layout, rules, gameDisplay, k, agentToUse)
     
     ga = GeneticAlgorithm(
-        n_genes = 7,
+        n_genes = 4,
         n_iterations = 20,
-        lchrom = 7,
+        lchrom = 4,
         pcross = 0.8, 
-        pmutation = 0.2,
+        pmutation = 0.35,
         selection_type = 'ranking', 
-        popsize = 20,
+        popsize = 30,
         n_elites = 2,
         data = data,
-        MAX_VALUE = 100,
-        MIN_VALUE = -100,
+        MAX_VALUE = 500,
+        MIN_VALUE = -500,
     )
 
     best_solution, best_fitness = ga.optimize()
