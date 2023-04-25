@@ -170,8 +170,17 @@ class MinimaxAgent(MultiAgentSearchAgent):
             successorValue = self.minimax(successor, successorIndex, successorDepth)[0]
 
             if successorValue > v:
-                v = successorValue
-                bestAction = action
+                if action == Directions.STOP:
+                    x = (self.temperature - 0.5) * 12
+                    s = 1 / (1 + math.exp(-x))
+                    reduce_amount = s * 0.9 + 0.1
+                    successorValue *= reduce_amount
+                    if successorValue > v:
+                        v = successorValue
+                        bestAction = action
+                else:
+                    v = successorValue
+                    bestAction = action
         return v, bestAction
     
     def minValue(self, state, currentDepth, agentIndex):
@@ -317,7 +326,7 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
     """
 
     def expectimax(self, gameState, agentIndex, depth):
-        if gameState.isWin() or gameState.isLose() or depth == self.depth:
+        if gameState.isWin() or gameState.isLose() or depth >= self.depth:
             return self.evaluationFunction(gameState), None
 
         if agentIndex == 0:
@@ -341,8 +350,17 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
             successorValue = self.expectimax(successor, successorIndex, successorDepth)[0]
 
             if successorValue > v:
-                v = successorValue
-                bestAction = action
+                if action == Directions.STOP:
+                    x = (self.temperature - 0.5) * 12
+                    s = 1 / (1 + math.exp(-x))
+                    reduce_amount = s * 0.9 + 0.1
+                    successorValue *= reduce_amount
+                    if successorValue > v:
+                        v = successorValue
+                        bestAction = action
+                else:
+                    v = successorValue
+                    bestAction = action
         return v, bestAction
     
     def expValue(self, state, currentDepth, agentIndex):
@@ -409,8 +427,17 @@ class ExpectimaxAlphaBetaPruningAgent(MultiAgentSearchAgent):
             successorValue = self.alphaBeta(successor, successorIndex, successorDepth, alpha, beta)[0]
 
             if successorValue > v:
-                v = successorValue
-                bestAction = action
+                if action == Directions.STOP:
+                    x = (self.temperature - 0.5) * 12
+                    s = 1 / (1 + math.exp(-x))
+                    reduce_amount = s * 0.9 + 0.1
+                    successorValue *= reduce_amount
+                    if successorValue > v:
+                        v = successorValue
+                        bestAction = action
+                else:
+                    v = successorValue
+                    bestAction = action
 
             if v > beta:
                 return v, bestAction
@@ -540,10 +567,10 @@ def betterEvaluationFunction(currentGameState: GameState):
     "*** YOUR CODE HERE ***"
 
     solution = [
-        1735,
-        139,
-        345,
-        -1299,
+        1687,
+        469,
+        1040,
+        -748,
     ]
 
     def DClosestFood(current_pos, foodGrid, ghosts_pos):
@@ -560,22 +587,28 @@ def betterEvaluationFunction(currentGameState: GameState):
             closestFood = 1
         return closestFood
     
-    def isNearGhost(current_pos, ghosts_pos):
+    def isNearGhost(current_pos, ghosts_states):
         # exact distance to ghost
-        for ghost in ghosts_pos:
-            estimadedDistance = euclideanDistance(current_pos, ghost)
-            if estimadedDistance <= 1:
-                if len(aStar(currentGameState, ghost, manhattanDistance)) <= 1:
-                    return 1
+        for ghost_state in ghosts_states:
+            if ghost_state.scaredTimer == 0:
+                estimadedDistance = euclideanDistance(current_pos, ghost_state.getPosition())
+                if estimadedDistance <= 1:
+                    if len(aStar(currentGameState, ghost_state.getPosition(), manhattanDistance)) <= 1:
+                        return 1
+            else:
+                estimadedDistance = euclideanDistance(current_pos, ghost_state.getPosition())
+                if estimadedDistance <= ghost_state.scaredTimer:
+                    return -10
         return 0
 
     current_pos = currentGameState.getPacmanPosition()
     ghosts_pos = currentGameState.getGhostPositions()
+    ghosts_states = currentGameState.getGhostStates()
 
     foodGrid = currentGameState.getFood()
     capsuleList = currentGameState.getCapsules()
 
-    feat_isNearGhost = isNearGhost(current_pos, ghosts_pos)
+    feat_isNearGhost = isNearGhost(current_pos, ghosts_states)
 
     maximum_distance = currentGameState.data.layout.width + currentGameState.data.layout.height
     closest_food = DClosestFood(current_pos, foodGrid, ghosts_pos)
@@ -586,9 +619,9 @@ def betterEvaluationFunction(currentGameState: GameState):
     feat_currentScore = currentGameState.getScore()
     feat_FoodCount = 1.0 / (len(foodGrid.asList()) + 1)
 
-    features = [feat_DClosestFood,
+    features = [feat_currentScore,
                 feat_FoodCount,
-                feat_currentScore,
+                feat_DClosestFood,            
                 feat_isNearGhost]
 
     score = 0

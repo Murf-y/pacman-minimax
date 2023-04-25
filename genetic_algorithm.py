@@ -172,15 +172,15 @@ class GeneticAlgorithm:
         # should maximize
         def customEvaluationFunction(currentGameState):
             def DClosestFood(current_pos, foodGrid, ghosts_pos):
-                closestFood = foodHeuristic(current_pos, foodGrid)
-
-                if closestFood == 0:
-                    closestFood = 1
                 # if there is chance (thus manhattanDistance and not exact distance)
                 # that there is a ghost nearby dont risk it
                 for ghost in ghosts_pos:
                     if manhattanDistance(current_pos, ghost) <= 1:
-                        closestFood = 99999
+                        return 99999
+
+                closestFood = foodHeuristic(current_pos, foodGrid)
+                if closestFood == 0:
+                    closestFood = 1
                 return closestFood
             
             def isNearGhost(current_pos, ghosts_pos):
@@ -198,7 +198,6 @@ class GeneticAlgorithm:
             foodGrid = currentGameState.getFood()
             capsuleList = currentGameState.getCapsules()
 
-            feat_isNearGhost = isNearGhost(current_pos, ghosts_pos)
 
             maximum_distance = currentGameState.data.layout.width + currentGameState.data.layout.height
             closest_food = DClosestFood(current_pos, foodGrid, ghosts_pos)
@@ -208,6 +207,7 @@ class GeneticAlgorithm:
             feat_DClosestFood = math.exp(feat_DClosestFood)
             feat_currentScore = currentGameState.getScore()
             feat_FoodCount = 1.0 / (len(foodGrid.asList()) + 1)
+            feat_isNearGhost = isNearGhost(current_pos, ghosts_pos)
 
             features = [feat_DClosestFood,
                         feat_FoodCount,
@@ -226,11 +226,16 @@ class GeneticAlgorithm:
         game = self.data.rules.newGame(self.data.layout, customAgent, baseGhosts, self.data.gameDisplay)
 
         # wait for the game to finish
-        game.run()
-        score = game.state.getScore()
-        cache = {} # clear cache
-        
-        print("Individual: ", solution, "Score: ", score)
+            
+        scores = []
+        for _ in range(2):
+            game.run()
+            while not game.state.isWin() and not game.state.isLose():
+                continue
+            scores.append(game.state.getScore())
+            game = self.data.rules.newGame(self.data.layout, customAgent, baseGhosts, self.data.gameDisplay)
+
+        score = np.mean(scores)
         return score
 
 
