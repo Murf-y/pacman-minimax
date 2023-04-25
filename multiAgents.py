@@ -491,8 +491,52 @@ def betterEvaluationFunction(currentGameState: GameState):
     Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
     evaluation function (question 5).
 
-    DESCRIPTION: <write something here so we know what you did>
+    DESCRIPTION: 
+    First, we extract features from the current game state. Those features are:
+
+    - feat_FoodCount: the number of food left on the board
+
+    - feat_DClosestFood: the distance to the closest food
+        - Here we use the foodHeuristic function to actually calculate the distance to the closest food using manhattan distance
+        - We also check if there is a ghost nearby, if so we return a very high number to avoid it, meaning that no need to risk going for the close food if there is a ghost nearby
+        - The returned value is normalized by the maximum distance possible on the board ((maximum_distance - closest_food) / maximum_distance)
+        - Then we use math.exp(feat_DClosestFood) to make changes in the distance more sensitive
+
+    - feat_currentScore: the current score of the game
+
+    - feat_isNearGhost: a boolean value (0 or 1) indicating if there is a ghost nearby
+        - It works by first using manhattan distance to check if there is a CHANCE that there is a ghost nearby
+        - If there is a chance, we use A* to validate that indeed there is a ghost nearby
+    
+
+    Then, we use the weights to calculate the score of the current game state.
+
+    We used a Genetic Algorithm to find the best weights for the features.
+        - How it works:
+            - We start with a random population of weights, each chromosome is a list of 4 weights [w1, w2, w3, w4] where wi is a random number between -2000 and 2000
+            - We then calculate the fitness of each chromosome by running the game 1 time and returning the final game score as the fitness of that chromosome
+            - We used ranking selection to select the best chromosomes to be the parents of the next generation
+            - We used 80% probabilty for crossover and 35% probabilty for mutation
+            - We keep 2 elites from each generation to speedup convergence and not lose valuable weights
+        
+        - How to run the GA:
+            - First
+                ```py
+                pip install requirements.txt
+                ```
+            - Then run
+                ```py
+                python genetic_algorithm.py -l smallClassic -p AlphaBetaAgent -k 10
+                ```
+            
+            - l is the layout of the game
+            - p is the agent to use
+            - k is the number of ghosts
+    
+    We multiply each feature by its weight and sum them up to get the score of the current game state
+    then return that score
     """
+
     "*** YOUR CODE HERE ***"
 
     solution = [
@@ -503,15 +547,17 @@ def betterEvaluationFunction(currentGameState: GameState):
     ]
 
     def DClosestFood(current_pos, foodGrid, ghosts_pos):
-        closestFood = foodHeuristic(current_pos, foodGrid)
 
-        if closestFood == 0:
-            closestFood = 1
         # if there is chance (thus manhattanDistance and not exact distance)
         # that there is a ghost nearby dont risk it
         for ghost in ghosts_pos:
             if manhattanDistance(current_pos, ghost) <= 1:
-                closestFood = 99999
+                return 99999
+
+
+        closestFood = foodHeuristic(current_pos, foodGrid)
+        if closestFood == 0:
+            closestFood = 1
         return closestFood
     
     def isNearGhost(current_pos, ghosts_pos):
@@ -554,8 +600,6 @@ def betterEvaluationFunction(currentGameState: GameState):
 better = betterEvaluationFunction
 
 def foodHeuristic(position, foodGrid):
-    "*** YOUR CODE HERE ***"
-
     food_list = foodGrid.asList()
 
     if len(food_list) == 0:
