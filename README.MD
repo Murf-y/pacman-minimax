@@ -1,9 +1,9 @@
-<h1 align="center">Pacman ExpectiMaxAlphaBeta
+<h1 align="center">Pacman Alpha-Beta Pruning🎮
     <img src="./gifs/200w.webp" width="40">
 </h1>
 
 <h4 align="center" id="about">
-A Pacman  🎮 AI that uses Expectimax and Alpha-Beta pruning to play Pacman. This project was done as part of the Artificial Intelligence course at the Lebananese American University.
+A Pacman  🎮 AI that uses Minimax with Alpha-Beta pruning to play Pacman. This project was done as part of the Artificial Intelligence course at the Lebananese American University.
 We implmented, minimax, expectimax, and alpha-beta pruning. We also implemented a better evaluation function for the pacman game.
 </h4>
 
@@ -19,18 +19,19 @@ Table of Contents 📚
 <ul>
 </h2>
 <li><a href="#about">About</a></li>
-<li><a href="#expectimax">Expectimax</a></li>
+<li><a href="#alphabeta">Alpha Beta Prunning</a></li>
 <li><a href="#simulated-annealing">How we used same concept of simulated annealing</a></li>
 <li><a href="#evaluation-function">Evaluation Function</a></li>
 <li><a href="#contributors">Contributors</a></li>
 <li><a href="#license">License</a></li>
 
 <hr>
-<h2 align="left" style="display:flex;align-items:center;justify-items:center;gap: 2rem" id="expectimax">Expectimax
+<h2 align="left" style="display:flex;align-items:center;justify-items:center;gap: 2rem" id="alphabeta">Expectimax
     <img src="./gifs/200w.webp" width="40">
 </h2>
 <p>
-Expectimax is a variant of minimax that is used in games with stochastic elements. In games with stochastic elements, the next state is not completely determined by the current state and the agent's action. Instead, there is a probability distribution over the possible next states. In such games, the agent must consider not only the expected value of the immediate reward, but also the expected value of the future rewards. Expectimax is a variant of minimax that handles this situation. We implemented expectimax in the file <code>multiAgents.py</code>.
+Alpha Beta Pruning is a search algorithm that seeks to decrease the number of nodes that are evaluated by the minimax algorithm in its search tree. It is an adversarial search algorithm used commonly for machine playing of two-player games (Tic-tac-toe, Chess, Go, etc.). It stops evaluating a move when at least one possibility has been found that proves the move to be worse than a previously examined move. Such moves need not be evaluated further. When applied to a standard minimax tree, it returns the same move as minimax would, but prunes away branches that cannot possibly influence the final decision.
+ We implemented alpha beta prunning in the file <code>multiAgents.py</code> under the class <code>AlphaBetaAgent</code>
 </p>
 
 <br>
